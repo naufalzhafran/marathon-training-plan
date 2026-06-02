@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+{% block title %}Training Dashboard{% endblock %}
+{% block content %}
+
+<!-- Race Countdown Banner -->
+<div class="race-countdown">
+  <div>
+    <div class="rc-label">Goal Race</div>
+    <div class="rc-title">Maybank Virgin Marathon &mdash; 23 Aug 2026</div>
+    <div class="sub" style="margin-top:4px">Run-walk 9:1 &middot; Target 4:45&ndash;5:30 &middot; Easy effort (HR &lt;150)</div>
+  </div>
+  <div style="text-align:right;flex-shrink:0">
+    <div class="rc-days">{{ summary.days_to_race }}</div>
+    <div class="rc-days-label">days to race</div>
+  </div>
+</div>
+
+<!-- KPI Strip -->
+<section class="grid kpis">
+  <div class="kpi">
+    <div class="v">{{ summary.total_run_distance }}<span> km</span></div>
+    <div class="l">Total run distance</div>
+    <div class="t up">{{ summary.run_count }} runs logged</div>
+  </div>
+  <div class="kpi">
+    <div class="v">{{ summary.current_week_run_km }}<span> km</span></div>
+    <div class="l">This week</div>
+    <div class="t">Strength {{ summary.current_week_strength }}x this week</div>
+  </div>
+  <div class="kpi">
+    <div class="v">{{ summary.longest_recent }}<span> km</span></div>
+    <div class="l">Recent longest run</div>
+    <div class="t fl">All-time best: {{ summary.longest_all }} km</div>
+  </div>
+  <div class="kpi">
+    <div class="v">{{ summary.days_to_race }}</div>
+    <div class="l">Days to race day</div>
+    <div class="t up">Run-walk 9:1 strategy</div>
+  </div>
+</section>
+
+{% if body_summary %}
+<!-- Body Composition -->
+<section class="card">
+  <div class="section-head">
+    <div class="title-stack">
+      <h2>Body Composition</h2>
+      <div class="sub">Latest from {{ body_summary.measured_at }} &middot; drives protein &amp; deficit guidance</div>
+    </div>
+    <a class="button secondary" href="/body/new">Update</a>
+  </div>
+  <div class="metric-strip">
+    <div class="metric"><b>{{ body_summary.weight_kg }}</b><span>kg weight</span></div>
+    <div class="metric"><b>{{ body_summary.body_fat_percent }}</b><span>% body fat</span></div>
+    <div class="metric"><b>{{ body_summary.fat_mass_kg }}</b><span>kg fat mass</span></div>
+    <div class="metric"><b>{{ body_summary.bmr }}</b><span>kcal BMR</span></div>
+    <div class="metric"><b>{{ body_summary.protein_floor }}&ndash;{{ body_summary.protein_ceiling }}</b><span>g protein/day</span></div>
+  </div>
+</section>
+{% endif %}
+
+<!-- Decision + Readiness -->
+<div class="grid dashboard-grid">
+  <section class="card">
+    <div class="panel-title">
+      <div class="title-stack">
+        <h2>Training Decision</h2>
+        <div class="sub">Deterministic rules from SQLite &middot; use AI handoff for deeper analysis</div>
+      </div>
+      <a class="button secondary" href="/ai">AI Handoff</a>
+    </div>
+    <div class="recommendation-list">
+      {% for rec in recommendations %}
+      <div class="rec">{{ rec }}</div>
+      {% endfor %}
+    </div>
+    {% if latest_ai %}
+    <div class="ai-box">
+      <b>Latest AI Recommendation</b>
+      <pre>{{ latest_ai.response }}</pre>
+    </div>
+    {% endif %}
+  </section>
+
+  <div>
+    <!-- Readiness -->
+    <section class="card" style="margin-bottom:16px">
+      <div class="panel-title">
+        <div class="title-stack">
+          <h2>Readiness</h2>
+          <div class="sub">Long-run, volume, HR, consistency</div>
+        </div>
+      </div>
+      <div class="gauge">
+        {% for item in readiness %}
+        <div>
+          <div class="mrow">
+            <span>{{ item.label }}</span>
+            <b class="{{ item.kind }}">{{ item.score }}%</b>
+          </div>
+          <div class="meter"><span class="{{ item.kind }}" style="width:{{ item.score }}%"></span></div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- HR Zones -->
+    <section class="card">
+      <div class="panel-title">
+        <div class="title-stack">
+          <h2>HR Zones</h2>
+          <div class="sub">HRmax ~193 &middot; easy stays Z2</div>
+        </div>
+      </div>
+      <div class="zone-grid" style="grid-template-columns:repeat(2,1fr)">
+        <div class="zone"><span class="zchip z1">Z1</span><div><b>&le;135 bpm</b><div class="sub">Recovery</div></div></div>
+        <div class="zone"><span class="zchip z2">Z2</span><div><b>136&ndash;154 bpm</b><div class="sub">Easy base</div></div></div>
+        <div class="zone"><span class="zchip z3">Z3</span><div><b>155&ndash;168 bpm</b><div class="sub">Steady</div></div></div>
+        <div class="zone"><span class="zchip z4">Z4</span><div><b>169&ndash;179 bpm</b><div class="sub">Threshold</div></div></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Charts -->
+<section class="card">
+  <div class="section-head">
+    <div class="title-stack">
+      <h2>Training Charts</h2>
+      <div class="sub">Weekly volume, HR trend, long run progression</div>
+    </div>
+  </div>
+  <div class="charts-grid">
+    <div class="chart-wrap">
+      <h3>Weekly Volume — Planned vs Actual (km)</h3>
+      <canvas id="chartVolume"></canvas>
+    </div>
+    <div class="chart-wrap">
+      <h3>Long Run Progression (km)</h3>
+      <canvas id="chartLong"></canvas>
+    </div>
+  </div>
+</section>
+
+<script>
+(function() {
+  const d = {{ charts_json | safe }};
+
+  const ORANGE = '#fc4c02';
+  const ORANGE_SOFT = 'rgba(252,76,2,.15)';
+  const GRAY = '#dedede';
+  const GRAY_SOFT = 'rgba(180,180,180,.2)';
+  const GREEN = '#1f9d5c';
+  const INK2 = '#3d3d3d';
+  const MUTED = '#a0a0a0';
+
+  const base = {
+    responsive: true,
+    maintainAspectRatio: true,
+    plugins: { legend: { labels: { color: INK2, font: { family: 'Inter', size: 12 }, boxWidth: 12, padding: 16 } } },
+    scales: {
+      x: { ticks: { color: MUTED, font: { size: 11 } }, grid: { color: 'rgba(0,0,0,.05)' } },
+      y: { ticks: { color: MUTED, font: { size: 11 } }, grid: { color: 'rgba(0,0,0,.05)' }, beginAtZero: true }
+    }
+  };
+
+  // Volume chart
+  new Chart(document.getElementById('chartVolume'), {
+    type: 'bar',
+    data: {
+      labels: d.volume_labels,
+      datasets: [
+        { label: 'Planned', data: d.volume_planned, backgroundColor: GRAY_SOFT, borderColor: GRAY, borderWidth: 1.5, borderRadius: 4 },
+        { label: 'Actual',  data: d.volume_actual,  backgroundColor: ORANGE_SOFT, borderColor: ORANGE, borderWidth: 1.5, borderRadius: 4 }
+      ]
+    },
+    options: { ...base, plugins: { ...base.plugins, tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} km` } } } }
+  });
+
+  // Long run chart
+  new Chart(document.getElementById('chartLong'), {
+    type: 'bar',
+    data: {
+      labels: d.volume_labels,
+      datasets: [
+        { label: 'Planned long', data: d.long_planned, backgroundColor: GRAY_SOFT, borderColor: GRAY, borderWidth: 1.5, borderRadius: 4 },
+        { label: 'Actual long',  data: d.long_actual,  backgroundColor: 'rgba(34,197,94,.15)', borderColor: GREEN, borderWidth: 1.5, borderRadius: 4 }
+      ]
+    },
+    options: { ...base, plugins: { ...base.plugins, tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} km` } } } }
+  });
+
+})();
+</script>
+
+<!-- Schedule -->
+<section class="card">
+  <div class="section-head">
+    <div class="title-stack">
+      <h2>Day-by-Day Schedule</h2>
+      <div class="sub">12-week plan &middot; sessions include strength, leg day, calories, and protein targets</div>
+    </div>
+    <a class="button" href="/activities/new">Log Activity</a>
+  </div>
+  {% for week in weeks %}
+  <details {% if week.week_no == 1 %}open{% endif %}>
+    <summary>
+      <b>Week {{ week.week_no }}</b>
+      <span style="color:var(--muted-2);font-size:13px">{{ week.start }} &rarr; {{ week.end }}</span>
+      <span class="badge badge-orange" style="margin-left:auto">{{ week.summary }}</span>
+    </summary>
+    <div class="days">
+      {% for session in week.sessions %}
+      <div class="d {% if session.completed %}completed{% endif %}">
+        <div class="day-name">
+          {% if session.completed %}<span class="check">&#10003;</span>{% endif %}
+          {{ session.day_label }}
+        </div>
+        <span class="{{ 'r' if session.session_type == 'rest' else 'l' if session.session_type == 'long' else 'q' if session.session_type in ['quality','race'] else 'h' if session.session_type == 'hike' else 'e' }}">{{ session.label }}</span>
+        {% if session.has_strength %}<span class="s">+ Strength</span>{% endif %}
+        {% if session.has_leg_day %}<span class="s">+ Legs</span>{% endif %}
+        <p>{% if session.actual_summary %}<span style="color:var(--green);font-weight:600">{{ session.actual_summary }}</span> {% endif %}{{ session.dynamic_description }}</p>
+        <div class="fuel"><b>Fuel</b> {{ session.planned_calories }} kcal &middot; {{ session.planned_protein }}g protein</div>
+      </div>
+      {% endfor %}
+    </div>
+  </details>
+  {% endfor %}
+</section>
+
+<!-- Body + Activity Tables -->
+{% if latest_body_metrics %}
+<section class="card">
+  <div class="panel-title">
+    <div class="title-stack">
+      <h2>Body Metric History</h2>
+      <div class="sub">Newest first</div>
+    </div>
+    <a class="button secondary" href="/body/new">Add</a>
+  </div>
+  <div class="table body-table">
+    {% for metric in latest_body_metrics %}
+    <div class="row">
+      <span>{{ metric.measured_at }}</span>
+      <span>{{ metric.weight_kg }} kg</span>
+      <span>{{ metric.body_fat_percent or "—" }}% fat</span>
+      <span>{{ metric.bmr or "—" }} kcal BMR</span>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="card">
+  <div class="panel-title">
+    <div class="title-stack">
+      <h2>Latest Activities</h2>
+      <div class="sub">Most recent entries from SQLite</div>
+    </div>
+    <a class="button secondary" href="/activities/new">Add</a>
+  </div>
+  <div class="table">
+    {% for activity in latest_activities %}
+    <div class="row">
+      <span>{{ activity.activity_date }}</span>
+      <span>{{ activity.activity_type }}</span>
+      <span>{{ activity.distance or 0 }} km</span>
+      <span>HR {{ activity.avg_hr or "—" }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+{% endblock %}

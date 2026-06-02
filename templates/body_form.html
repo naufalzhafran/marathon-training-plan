@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Body Metrics{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div class="title-stack">
+    <h2>Body Metrics</h2>
+    <div class="sub">Weight, fat %, and BMR feed nutrition &amp; deficit guidance</div>
+  </div>
+  <a class="button secondary" href="/">Back to Dashboard</a>
+</div>
+
+<section class="card">
+  <div class="panel-title">
+    <div class="title-stack">
+      <h2>New Measurement</h2>
+      <div class="sub">Previous values pre-filled for reference</div>
+    </div>
+  </div>
+  <form method="post" action="/body" class="form-grid">
+    <label>
+      Date<span class="req">*</span>
+      <input name="measured_at" type="date" required>
+    </label>
+    <label>
+      Weight (kg)<span class="req">*</span>
+      <input name="weight_kg" type="number" step="0.1" min="30" max="200" required
+             placeholder="{{ latest.weight_kg if latest else '70.0' }}"
+             value="{{ latest.weight_kg if latest }}">
+    </label>
+    <label>
+      Body fat (%)
+      <input name="body_fat_percent" type="number" step="0.1" min="3" max="60"
+             placeholder="{{ latest.body_fat_percent if latest else '20.0' }}"
+             value="{{ latest.body_fat_percent if latest }}">
+    </label>
+    <label>
+      BMR (kcal)
+      <input name="bmr" type="number" min="800" max="4000"
+             placeholder="{{ latest.bmr if latest else '1480' }}"
+             value="{{ latest.bmr if latest }}">
+    </label>
+    <label class="full">
+      Notes
+      <textarea name="notes" rows="2" placeholder="Optional context (e.g. morning fasted, post-run)"></textarea>
+    </label>
+    <div class="form-actions full">
+      <button type="submit">Save Measurement</button>
+      <a class="button secondary" href="/">Cancel</a>
+    </div>
+  </form>
+</section>
+
+{% if history %}
+<section class="card">
+  <div class="panel-title">
+    <div class="title-stack">
+      <h2>Recent History</h2>
+      <div class="sub">Newest first</div>
+    </div>
+  </div>
+  <div class="table body-table">
+    {% for metric in history %}
+    <div class="row">
+      <span>{{ metric.measured_at }}</span>
+      <span>{{ metric.weight_kg }} kg</span>
+      <span>{{ metric.body_fat_percent or "—" }}% fat</span>
+      <span>{{ metric.bmr or "—" }} kcal BMR</span>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}

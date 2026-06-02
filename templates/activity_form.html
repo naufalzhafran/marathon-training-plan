@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Log Activity{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div class="title-stack">
+    <h2>Log Activity</h2>
+    <div class="sub">Manual entries recalculate the dashboard immediately</div>
+  </div>
+  <a class="button secondary" href="/">Back to Dashboard</a>
+</div>
+
+<section class="card">
+  <div class="panel-title">
+    <div class="title-stack">
+      <h2>Paste Garmin CSV</h2>
+      <div class="sub">Paste the header row and one activity row &mdash; unsupported columns are ignored</div>
+    </div>
+  </div>
+  {% if parse_error %}
+  <div class="error-note"><b>CSV parse failed:</b> {{ parse_error }}</div>
+  {% endif %}
+  <form method="post" class="paste-form">
+    <label class="full">
+      CSV text
+      <textarea name="csv_text" rows="6" placeholder="Activity Type,Date,Favorite,Title,Distance,...">{{ csv_text }}</textarea>
+    </label>
+    <div class="form-actions full">
+      <button type="submit" formaction="/activities/preview-csv">Preview into form</button>
+      <button type="submit" class="button secondary" style="border:1.5px solid var(--line-2)" formaction="/activities/import-csv">Import directly</button>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <div class="panel-title">
+    <div class="title-stack">
+      <h2>Manual Entry</h2>
+      <div class="sub">Use directly, or preview a pasted CSV into these fields first</div>
+    </div>
+  </div>
+  <form method="post" action="/activities" class="form-grid">
+    <label>
+      Activity type<span class="req">*</span>
+      <select name="activity_type" required>
+        {% set selected_type = prefill.activity_type if prefill else "" %}
+        {% for type in ["Treadmill Running", "Running", "Strength Training", "Walking", "Hiking", "Other"] %}
+        <option {% if selected_type == type %}selected{% endif %}>{{ type }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Date &amp; time<span class="req">*</span>
+      <input name="activity_date" type="datetime-local" required value="{{ prefill.activity_date_local if prefill }}">
+    </label>
+    <label>
+      Title
+      <input name="title" placeholder="Morning run" value="{{ prefill.title if prefill }}">
+    </label>
+    <label>
+      Distance (km)
+      <input name="distance" type="number" step="0.01" min="0" placeholder="0.00" value="{{ prefill.distance if prefill.distance is not none }}">
+    </label>
+    <label>
+      Duration
+      <input name="duration" placeholder="00:44:22" value="{{ prefill.duration if prefill }}">
+    </label>
+    <label>
+      Calories
+      <input name="calories" type="number" min="0" placeholder="0" value="{{ prefill.calories if prefill.calories is not none }}">
+    </label>
+    <label>
+      Avg HR (bpm)
+      <input name="avg_hr" type="number" min="0" max="250" placeholder="—" value="{{ prefill.avg_hr if prefill.avg_hr is not none }}">
+    </label>
+    <label>
+      Max HR (bpm)
+      <input name="max_hr" type="number" min="0" max="250" placeholder="—" value="{{ prefill.max_hr if prefill.max_hr is not none }}">
+    </label>
+    <label>
+      Aerobic TE
+      <input name="aerobic_te" type="number" step="0.1" min="0" max="5" placeholder="0.0" value="{{ prefill.aerobic_te if prefill.aerobic_te is not none }}">
+    </label>
+    <label>
+      Avg pace
+      <input name="avg_speed" placeholder="8:48 /km" value="{{ prefill.avg_speed if prefill }}">
+    </label>
+    <label>
+      Total ascent (m)
+      <input name="total_ascent" type="number" step="0.1" placeholder="0" value="{{ prefill.total_ascent if prefill.total_ascent is not none }}">
+    </label>
+    <label>
+      Total descent (m)
+      <input name="total_descent" type="number" step="0.1" placeholder="0" value="{{ prefill.total_descent if prefill.total_descent is not none }}">
+    </label>
+    <label>
+      Steps
+      <input name="steps" type="number" min="0" placeholder="0" value="{{ prefill.steps if prefill.steps is not none }}">
+    </label>
+    <label>
+      Total sets
+      <input name="total_sets" type="number" min="0" placeholder="0" value="{{ prefill.total_sets if prefill.total_sets is not none }}">
+    </label>
+    <label>
+      Body battery drain
+      <input name="body_battery_drain" type="number" placeholder="0" value="{{ prefill.body_battery_drain if prefill.body_battery_drain is not none }}">
+    </label>
+    <label class="full">
+      Notes
+      <textarea name="notes" rows="3" placeholder="How did it feel?">{{ prefill.notes if prefill }}</textarea>
+    </label>
+    <div class="form-actions full">
+      <button type="submit">Save Activity</button>
+      <a class="button secondary" href="/">Cancel</a>
+    </div>
+  </form>
+</section>
+
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}AI Handoff{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div class="title-stack">
+    <h2>AI Handoff</h2>
+    <div class="sub">Generate context, run Claude / Codex manually, paste the output back</div>
+  </div>
+  <a class="button secondary" href="/">Back to Dashboard</a>
+</div>
+
+<section class="card">
+  <div class="panel-title">
+    <div class="title-stack">
+      <h2>Prompt Context</h2>
+      <div class="sub">Includes profile, recent activity, 12-week plan, and deterministic recommendation</div>
+    </div>
+    <a class="button secondary" href="/ai/prompt.txt" target="_blank">Open as plain text</a>
+  </div>
+  <textarea class="prompt full" readonly>{{ prompt }}</textarea>
+</section>
+
+<section class="card">
+  <div class="panel-title">
+    <div class="title-stack">
+      <h2>Paste AI Response</h2>
+      <div class="sub">Stored locally in SQLite &mdash; shows on dashboard</div>
+    </div>
+  </div>
+  <form method="post" action="/ai" class="paste-form">
+    <textarea name="prompt" hidden>{{ prompt }}</textarea>
+    <label class="full">
+      AI recommendation
+      <textarea name="response" rows="10" required placeholder="Paste Claude / Codex response here…"></textarea>
+    </label>
+    <div class="form-actions full">
+      <button type="submit">Save Recommendation</button>
+    </div>
+  </form>
+</section>
+
+{% if latest_ai %}
+<section class="card">
+  <div class="panel-title">
+    <div class="title-stack">
+      <h2>Latest Saved Recommendation</h2>
+      <div class="sub">{{ latest_ai.created_at if latest_ai.created_at else "" }}</div>
+    </div>
+  </div>
+  <pre>{{ latest_ai.response }}</pre>
+</section>
+{% endif %}
+
+{% endblock %}
